@@ -12,6 +12,7 @@ class MatchStateEnum(Enum):
     WAITING_REMOTE = auto()
     WAITING_INPUT = auto()
     FINISHED_BY_VICTORY = auto()
+    FINISHED_BY_WITHDRAWAL = auto()
 
 class JogadaFase(Enum):
     SELECIONAR_TOTEM = auto()
@@ -59,6 +60,7 @@ class InterfaceJogador(DogPlayerInterface):
 
         self.arquivo.add_command(label="Iniciar jogo", command=self.start_match)
         self.arquivo.add_command(label="Restaurar estado inicial", command=self.start_game)
+        self.arquivo.add_command(label="desistir", command=self.start_game)
         
         self.menubar.add_cascade(label="Arquivo", menu=self.arquivo)
         self.tk.config(menu=self.menubar)
@@ -98,6 +100,10 @@ class InterfaceJogador(DogPlayerInterface):
         messagebox.showinfo(message=mensagem)
 
     def selecionar_simbolo(self, value: str):
+        if self.fase_jogada != JogadaFase.ESCOLHER_SIMBOLO:
+            messagebox.showerror("Jogada inválida", "Não está na vez de selecionar uma peça")
+            return
+
         self.simbolo_escolhido = value
         self.fase_jogada = JogadaFase.COLOCAR_PECA
         messagebox.showinfo("Simbolo selecionado", f"Simbolo {value} selecionado.")
@@ -176,17 +182,33 @@ class InterfaceJogador(DogPlayerInterface):
                 if self.tabuleiro.get_peca(x, y):
                     messagebox.showwarning("Posição ocupada", "Essa posição já está ocupada.")
                     return
+
+                totem_x = self.composicao_jogada["totem"]["x"]
+                totem_y = self.composicao_jogada["totem"]["y"]
+
+                adjacentes_vazias = self.get_posicoes_adjacentes_vazias(totem_x, totem_y)
+
+                # Se existem adjacentes vazias, só pode colocar em uma delas
+                if adjacentes_vazias:
+                    if (x, y) not in adjacentes_vazias:
+                        messagebox.showwarning(
+                            "Movimento inválido",
+                            "Você só pode colocar a peça em uma célula adjacente vazia ao Totem movido."
+                        )
+                        return
+                # Se não existem adjacentes vazias, pode colocar em qualquer célula vazia (já verificado acima)
+
                 nova_peca = self.tabuleiro.realizar_jogada(x, y, self.current_color, self.simbolo_escolhido)
 
                 self.composicao_jogada["peca"] = nova_peca
                 self.composicao_jogada["match_status"] = "next"
 
                 self.update_interface()
-
                 self.dog_server_interface.send_move(self.composicao_jogada)
                 self.match_state = MatchStateEnum.WAITING_REMOTE
                 self.fase_jogada = JogadaFase.SELECIONAR_TOTEM
                 self.simbolo_escolhido = None
+
 
     def start_match(self):
         self.current_color = "blue"
@@ -230,8 +252,9 @@ class InterfaceJogador(DogPlayerInterface):
             self.game_state = self.tabuleiro.get_status_partida()
 
     def receive_withdrawal_notification(self):
-        self.tabuleiro.receive_withdrawal_notification()
         self.game_state = self.tabuleiro.get_status_partida()
+        self.match_state = MatchStateEnum.FINISHED_BY_WITHDRAWAL
+        messagebox.showinfo("Vitória por desistência", "Adversário abandonou a partida!")
 
     def receive_move(self, a_move: dict):
         self.tabuleiro.receive_move(a_move)
@@ -292,3 +315,15 @@ class InterfaceJogador(DogPlayerInterface):
     def atualizar_cor_botoes(self, cor):
         self.botao_x.config(bg=cor)
         self.botao_o.config(bg=cor)
+
+    def get_posicoes_adjacentes_vazias(self, x: int, y: int):
+        adjacentes = []
+        for dx in [-1, 0, 1]:
+            for dy in [-1, 0, 1]:
+                nx, ny = x + dx, y + dy
+                if dx == 0 and dy == 0:
+                    continue
+                if 0 <= nx < self.grid_size and 0 <= ny < self.grid_size:
+                    if not self.tabuleiro.get_peca(nx, ny):
+                        adjacentes.append((nx, ny))
+        return adjacentes

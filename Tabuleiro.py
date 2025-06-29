@@ -75,9 +75,7 @@ class Tabuleiro:
                 peca.y = totem_move["y"]
                 self.totem = peca
                 return                 
-
-    def receive_withdrawal_notification(self):
-        pass 
+    
 
     def get_peca(self, x: int, y: int) -> Optional[Peca]:
         for peca in self.pieces:
