@@ -1,9 +1,10 @@
 import tkinter as tk
-from tkinter import Menu, messagebox, simpledialog
+from tkinter import Menu, messagebox, simpledialog, Canvas
 from dog.dog_actor import DogActor
 from dog.dog_interface import DogPlayerInterface
 from enum import Enum, auto
 from Tabuleiro import Tabuleiro
+from Peca import Peca
 
 
 class MatchStateEnum(Enum):
@@ -16,14 +17,33 @@ class MatchStateEnum(Enum):
 class InterfaceJogador(DogPlayerInterface):
     def __init__(self):
         self.tk = tk.Tk()
-        self.tabuleiro = Tabuleiro(self.tk)
         self.dog_server_interface = DogActor()
         self.menubar = Menu(self.tk)
         self.arquivo = Menu(self.menubar, tearoff=0)
         self.match_state: MatchStateEnum = None
+
+        self.canvas_width = 500
+        self.canvas_height = 500
+        self.canvas = Canvas(
+            self.tk,
+            width=self.canvas_width,
+            height=self.canvas_height,
+            bg="#333",
+            highlightthickness=0
+        ) 
+        self.grid_size = 5
+        self.board_margin = 50
+        
+        self.canvas.pack(padx=20, pady=20)
+        self.cell_size = (self.canvas_width - 2 * self.board_margin) / self.grid_size
+
+        self.tabuleiro = Tabuleiro(self.grid_size)
+
+
         self.current_symbol = None
         self.current_color = None
 
+        self.update_interface()
 
         self.arquivo.add_command(label="Iniciar jogo", command=self.start_match)
         self.arquivo.add_command(label="Restaurar estado inicial", command=self.start_game)
@@ -31,7 +51,7 @@ class InterfaceJogador(DogPlayerInterface):
         self.menubar.add_cascade(label="Arquivo", menu=self.arquivo)
         self.tk.config(menu=self.menubar)
 
-        self.tabuleiro.canvas.bind("<Button-1>", self.on_click_event)
+        self.canvas.bind("<Button-1>", self.on_click_event)
 
         nome_jogador = simpledialog.askstring("Nome do Jogador", "Digite seu nome:")
         mensagem = self.dog_server_interface.initialize(nome_jogador, self)
@@ -42,10 +62,11 @@ class InterfaceJogador(DogPlayerInterface):
             messagebox.showerror("Jogada inválida", "Não é o seu turno!")
             return
 
-        x = int((event.x - self.tabuleiro.board_margin) // self.tabuleiro.cell_size)
-        y = int((event.y - self.tabuleiro.board_margin) // self.tabuleiro.cell_size)
+        x = int((event.x - self.board_margin) // self.cell_size)
+        y = int((event.y - self.board_margin) // self.cell_size)
 
         move_pieces = self.tabuleiro.realizar_jogada(x, y, self.current_color, self.current_symbol)
+        self.update_interface()
 
         self.dog_server_interface.send_move(move_pieces)
         self.match_state = MatchStateEnum.WAITING_REMOTE
@@ -97,8 +118,59 @@ class InterfaceJogador(DogPlayerInterface):
 
     def receive_move(self, a_move: dict):
         self.tabuleiro.receive_move(a_move)
+        self.update_interface()
+
         self.game_state = self.tabuleiro.get_status_partida()
         self.match_state = MatchStateEnum.WAITING_INPUT
+
+
+    def draw_board(self):
+        board_size = self.canvas_width - (2 * self.board_margin)
+        self.canvas.create_rectangle(
+            self.board_margin, self.board_margin,
+            self.board_margin + board_size, self.board_margin + board_size,
+            fill="#663399", outline="white", width=2
+        )
+        for i in range(1, self.grid_size):
+            self.canvas.create_line(
+                self.board_margin, self.board_margin + i * self.cell_size,
+                self.board_margin + board_size, self.board_margin + i * self.cell_size,
+                fill="white"
+            )
+            self.canvas.create_line(
+                self.board_margin + i * self.cell_size, self.board_margin,
+                self.board_margin + i * self.cell_size, self.board_margin + board_size,
+                fill="white"
+            )
+
+    def update_interface(self):
+        # Limpa o canvas
+        self.canvas.delete("all")
+
+        # Redesenha o tabuleiro
+        self.draw_board()
+
+        # Redesenha todas as peças
+        for peca in self.tabuleiro.pieces:
+            self._desenhar_peca(peca)
+    
+    def _desenhar_peca(self, peca: Peca):
+        x, y = peca.x, peca.y
+        self.canvas.create_oval(
+            self.board_margin + x * self.cell_size + 5,
+            self.board_margin + y * self.cell_size + 5,
+            self.board_margin + (x + 1) * self.cell_size - 5,
+            self.board_margin + (y + 1) * self.cell_size - 5,
+            fill=peca.color,
+            outline="black"
+        )
+        self.canvas.create_text(
+            self.board_margin + (x + 0.5) * self.cell_size,
+            self.board_margin + (y + 0.5) * self.cell_size,
+            text=peca.symbol,
+            fill="white",
+            font=("Arial", 16, "bold")
+        )
 
     def executar(self):
         self.tk.title("Oxono multiplayer")
