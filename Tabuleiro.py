@@ -1,4 +1,5 @@
-from tkinter import Canvas
+from typing import Optional 
+from enum import Enum, auto
 from Peca import Peca
 import Jogador as jogador
 
@@ -20,6 +21,7 @@ class Tabuleiro:
 
         self.status_partida = 1
 
+    
         self.pieces = [
             Peca(0, 0, "black", "X", "totem"),
             Peca(1, 1, "black", "O", "totem"),
@@ -31,7 +33,7 @@ class Tabuleiro:
                 peca = Peca(x, y, color, symbol, "pedra")
                 self.pieces.append(peca)
         
-        return {"x": x, "y": y, "color": color, "symbol": symbol, "type": "pedra", "match_status": "next"}
+        return {"x": x, "y": y, "color": color, "symbol": symbol}
 
     def start_match(self, players, local_id):
         playerA_name = players[0][0]
@@ -54,7 +56,31 @@ class Tabuleiro:
         return self.status_partida
 
     def receive_move(self, a_move):
-        self.pieces.append(Peca(color= a_move["color"], symbol=a_move["symbol"], type=a_move["type"], x=a_move["x"], y=a_move["y"]))
+        peca_move = a_move["peca"]
+        totem_move = a_move["totem"]
+
+        # Adiciona a nova peça
+        self.pieces.append(Peca(
+            color=peca_move["color"],
+            symbol=peca_move["symbol"],
+            type="peca",
+            x=peca_move["x"],
+            y=peca_move["y"]
+        ))
+
+        # Atualiza a posição do totem existente
+        for peca in self.pieces:
+            if peca.type == "totem" and peca.symbol == totem_move["symbol"]:
+                peca.x = totem_move["x"]
+                peca.y = totem_move["y"]
+                self.totem = peca
+                return                 
 
     def receive_withdrawal_notification(self):
         pass 
+
+    def get_peca(self, x: int, y: int) -> Optional[Peca]:
+        for peca in self.pieces:
+            if peca.x == x and peca.y == y:
+                return peca
+        return None
