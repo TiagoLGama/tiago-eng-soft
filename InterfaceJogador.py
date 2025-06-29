@@ -11,7 +11,7 @@ class MatchStateEnum(Enum):
     NONE = auto()
     WAITING_REMOTE = auto()
     WAITING_INPUT = auto()
-    FINISHED_BY_VICTORY = auto()
+    FINISHED_BY_VICTORY_CONDITION = auto()
     FINISHED_BY_WITHDRAWAL = auto()
 
 class JogadaFase(Enum):
@@ -188,7 +188,6 @@ class InterfaceJogador(DogPlayerInterface):
 
                 adjacentes_vazias = self.get_posicoes_adjacentes_vazias(totem_x, totem_y)
 
-                # Se existem adjacentes vazias, só pode colocar em uma delas
                 if adjacentes_vazias:
                     if (x, y) not in adjacentes_vazias:
                         messagebox.showwarning(
@@ -196,18 +195,27 @@ class InterfaceJogador(DogPlayerInterface):
                             "Você só pode colocar a peça em uma célula adjacente vazia ao Totem movido."
                         )
                         return
-                # Se não existem adjacentes vazias, pode colocar em qualquer célula vazia (já verificado acima)
 
                 nova_peca = self.tabuleiro.realizar_jogada(x, y, self.current_color, self.simbolo_escolhido)
 
-                self.composicao_jogada["peca"] = nova_peca
-                self.composicao_jogada["match_status"] = "next"
+                condicao_vitoria_atingida = self.verificar_vitoria(x, y, self.current_color, self.simbolo_escolhido)
 
+                match_status = "next"
+                if condicao_vitoria_atingida:
+                    match_status = "finished"
+                    messagebox.showwarning("Partida finalizada", "você venceu!")
+                    self.match_state = MatchStateEnum.FINISHED_BY_VICTORY_CONDITION
+                else:
+                    self.match_state = MatchStateEnum.WAITING_REMOTE
+                    self.fase_jogada = JogadaFase.SELECIONAR_TOTEM
+                    self.simbolo_escolhido = None
+
+                self.composicao_jogada["peca"] = nova_peca
+                self.composicao_jogada["match_status"] = match_status
+            
                 self.update_interface()
                 self.dog_server_interface.send_move(self.composicao_jogada)
-                self.match_state = MatchStateEnum.WAITING_REMOTE
-                self.fase_jogada = JogadaFase.SELECIONAR_TOTEM
-                self.simbolo_escolhido = None
+                
 
 
     def start_match(self):
@@ -258,10 +266,14 @@ class InterfaceJogador(DogPlayerInterface):
 
     def receive_move(self, a_move: dict):
         self.tabuleiro.receive_move(a_move)
+        if a_move["match_status"] == "finished":
+            self.match_state = MatchStateEnum.FINISHED_BY_VICTORY_CONDITION
+            messagebox.showinfo("Partida Finalizada", "Você foi derrotado!")
+        else :
+            self.game_state = self.tabuleiro.get_status_partida()
+            self.match_state = MatchStateEnum.WAITING_INPUT
+        
         self.update_interface()
-
-        self.game_state = self.tabuleiro.get_status_partida()
-        self.match_state = MatchStateEnum.WAITING_INPUT
 
 
     def draw_board(self):
@@ -327,3 +339,37 @@ class InterfaceJogador(DogPlayerInterface):
                     if not self.tabuleiro.get_peca(nx, ny):
                         adjacentes.append((nx, ny))
         return adjacentes
+
+    def verificar_vitoria(self, x, y, cor, simbolo):
+        direcoes = [
+            (1, 0),  
+            (0, 1),  
+            (1, 1),  
+            (1, -1), 
+        ]
+
+        for dx, dy in direcoes:
+            cont_cor = 1
+            cont_simbolo = 1
+
+            for sentido in [-1, 1]:
+                nx, ny = x, y
+                while True:
+                    nx += dx * sentido
+                    ny += dy * sentido
+                    if 0 <= nx < 5 and 0 <= ny < 5:
+                        peca = self.tabuleiro.get_peca(nx, ny)
+                        if not peca or peca.type == "totem":
+                            break
+
+                        if peca.color == cor:
+                            cont_cor += 1
+                        if peca.symbol == simbolo:
+                            cont_simbolo += 1
+                    else:
+                        break
+
+            if cont_cor >= 4 or cont_simbolo >= 4:
+                return True
+
+        return False
