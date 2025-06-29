@@ -21,11 +21,13 @@ class InterfaceJogador(DogPlayerInterface):
         self.menubar = Menu(self.tk)
         self.arquivo = Menu(self.menubar, tearoff=0)
         self.match_state: MatchStateEnum = None
+        self.current_symbol = None
+        self.current_color = None
+
 
         self.arquivo.add_command(label="Iniciar jogo", command=self.start_match)
-        self.arquivo.add_command(
-            label="Restaurar estado inicial", command=self.start_game
-        )
+        self.arquivo.add_command(label="Restaurar estado inicial", command=self.start_game)
+        
         self.menubar.add_cascade(label="Arquivo", menu=self.arquivo)
         self.tk.config(menu=self.menubar)
 
@@ -35,12 +37,7 @@ class InterfaceJogador(DogPlayerInterface):
         mensagem = self.dog_server_interface.initialize(nome_jogador, self)
         messagebox.showinfo(message=mensagem)
 
-        self.current_symbol = "X"
-        self.current_color = "#cc0000"
-
     def on_click_event(self, event):
-        print(self.tabuleiro.jogador_local.turno)
-
         if self.match_state != MatchStateEnum.WAITING_INPUT:
             messagebox.showerror("Jogada inválida", "Não é o seu turno!")
             return
@@ -48,23 +45,17 @@ class InterfaceJogador(DogPlayerInterface):
         x = int((event.x - self.tabuleiro.board_margin) // self.tabuleiro.cell_size)
         y = int((event.y - self.tabuleiro.board_margin) // self.tabuleiro.cell_size)
 
-        move_pieces = self.tabuleiro.realizar_jogada(
-            x, y, self.current_color, self.current_symbol
-        )
-        self.toggle_player()
-        print("passou no send_move")
+        move_pieces = self.tabuleiro.realizar_jogada(x, y, self.current_color, self.current_symbol)
+
         self.dog_server_interface.send_move(move_pieces)
         self.match_state = MatchStateEnum.WAITING_REMOTE
 
-    def toggle_player(self):
-        if self.current_symbol == "X":
-            self.current_symbol = "O"
-            self.current_color = "blue"
-        else:
-            self.current_symbol = "X"
-            self.current_color = "#cc0000"
+
 
     def start_match(self):
+        self.current_color = "blue"
+        self.current_symbol = "X"
+
         match_status = self.tabuleiro.get_status_partida()
         if match_status == 1:
             answer = messagebox.askyesno("START", "Deseja iniciar uma nova partida?")
@@ -83,6 +74,9 @@ class InterfaceJogador(DogPlayerInterface):
                     messagebox.showinfo(message=start_status.get_message())
 
     def receive_start(self, start_status):
+        self.current_color = "red"
+        self.current_symbol = "O"
+
         self.start_game()
         players = start_status.get_players()
         local_player_id = start_status.get_local_id()
@@ -102,8 +96,6 @@ class InterfaceJogador(DogPlayerInterface):
         self.game_state = self.tabuleiro.get_status_partida()
 
     def receive_move(self, a_move: dict):
-        print("recebido")
-        print(a_move)
         self.tabuleiro.receive_move(a_move)
         self.game_state = self.tabuleiro.get_status_partida()
         self.match_state = MatchStateEnum.WAITING_INPUT
