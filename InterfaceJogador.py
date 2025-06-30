@@ -145,8 +145,14 @@ class InterfaceJogador(DogPlayerInterface):
     def receive_move(self, a_move: dict):
         self.tabuleiro.receive_move(a_move)
         if a_move["match_status"] == "finished":
-            self.tabuleiro.match_state = MatchStateEnum.FINISHED_BY_VICTORY_CONDITION
-            messagebox.showinfo("Partida Finalizada", "Você foi derrotado!")
+            is_condicao_empate = self.tabuleiro.tabuleiro_cheio()
+
+            if is_condicao_empate:
+                self.tabuleiro.match_state = MatchStateEnum.FINISHED_IN_A_DRAW
+                messagebox.showinfo("Partida Finalizada", "O jogo empatou")
+            else:
+                self.tabuleiro.match_state = MatchStateEnum.FINISHED_BY_VICTORY_CONDITION
+                messagebox.showinfo("Partida Finalizada", "Você foi derrotado!")
         else :
             self.game_state = self.tabuleiro.get_status_partida()
             self.tabuleiro.match_state = MatchStateEnum.WAITING_INPUT

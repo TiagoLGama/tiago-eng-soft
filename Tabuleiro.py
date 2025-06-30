@@ -18,6 +18,7 @@ class MatchStateEnum(Enum):
     WAITING_INPUT = auto()
     FINISHED_BY_VICTORY_CONDITION = auto()
     FINISHED_BY_WITHDRAWAL = auto()
+    FINISHED_IN_A_DRAW = auto()
 
 class JogadaFase(Enum):
     SELECIONAR_TOTEM = auto()
@@ -131,12 +132,18 @@ class Tabuleiro:
                 nova_peca = self.adicionar_nova_peca(x, y, color, self.simbolo_escolhido)
 
                 condicao_vitoria_atingida = self.verificar_vitoria(x, y, color, self.simbolo_escolhido)
-
+                condicao_empate_atingida = self.tabuleiro_cheio()
+                
                 match_status = "next"
+                
                 if condicao_vitoria_atingida:
                     match_status = "finished"
                     messagebox.showwarning("Partida finalizada", "você venceu!")
                     self.match_state = MatchStateEnum.FINISHED_BY_VICTORY_CONDITION
+                elif condicao_empate_atingida:
+                    match_status = "finished"
+                    messagebox.showwarning("Partida finalizada", "O jogo empatou")
+                    self.match_state = MatchStateEnum.FINISHED_IN_A_DRAW
                 else:
                     self.match_state = MatchStateEnum.WAITING_REMOTE
                     self.fase_jogada = JogadaFase.SELECIONAR_TOTEM
@@ -248,3 +255,6 @@ class Tabuleiro:
                 return True
 
         return False
+    
+    def tabuleiro_cheio(self) -> bool:
+        return len(self.pieces) >= self.grid_size * self.grid_size
