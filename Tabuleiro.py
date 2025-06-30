@@ -104,12 +104,10 @@ class Tabuleiro:
                 messagebox.showinfo("Totem movido", "Agora selecione um símbolo (X ou O).")
 
             case JogadaFase.ESCOLHER_SIMBOLO:
-            
                 if self.simbolo_escolhido == None:
                     messagebox.showwarning("Movimento inválido", "Você deve selecionar um simbolo")
                     return
-                
-                
+                                
             case JogadaFase.COLOCAR_PECA:
                 if self.simbolo_escolhido is None:
                     messagebox.showwarning("Símbolo não escolhido", "Você precisa escolher X ou O antes.")
@@ -226,16 +224,14 @@ class Tabuleiro:
 
     def verificar_vitoria(self, x, y, cor, simbolo):
         direcoes = [
-            (1, 0),  
+            (1, 0), 
             (0, 1),  
-            (1, 1),  
+            (1, 1), 
             (1, -1), 
         ]
 
         for dx, dy in direcoes:
             cont_cor = 1
-            cont_simbolo = 1
-
             for sentido in [-1, 1]:
                 nx, ny = x, y
                 while True:
@@ -243,20 +239,32 @@ class Tabuleiro:
                     ny += dy * sentido
                     if 0 <= nx < 5 and 0 <= ny < 5:
                         peca = self.get_peca(nx, ny)
-                        if not peca or peca.type == "totem":
+                        if not peca or peca.type == "totem" or peca.color != cor:
                             break
-
-                        if peca.color == cor:
-                            cont_cor += 1
-                        if peca.symbol == simbolo:
-                            cont_simbolo += 1
+                        cont_cor += 1
                     else:
                         break
+            if cont_cor >= 4:
+                return True
 
-            if cont_cor >= 4 or cont_simbolo >= 4:
+            cont_simbolo = 1
+            for sentido in [-1, 1]:
+                nx, ny = x, y
+                while True:
+                    nx += dx * sentido
+                    ny += dy * sentido
+                    if 0 <= nx < 5 and 0 <= ny < 5:
+                        peca = self.get_peca(nx, ny)
+                        if not peca or peca.type == "totem" or peca.symbol != simbolo:
+                            break
+                        cont_simbolo += 1
+                    else:
+                        break
+            if cont_simbolo >= 4:
                 return True
 
         return False
+
     
     def tabuleiro_cheio(self) -> bool:
         return len(self.pieces) >= self.grid_size * self.grid_size
