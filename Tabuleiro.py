@@ -104,9 +104,11 @@ class Tabuleiro:
                 messagebox.showinfo("Totem movido", "Agora selecione um símbolo (X ou O).")
 
             case JogadaFase.ESCOLHER_SIMBOLO:
+            
                 if self.simbolo_escolhido == None:
                     messagebox.showwarning("Movimento inválido", "Você deve selecionar um simbolo")
                     return
+                
                 
             case JogadaFase.COLOCAR_PECA:
                 if self.simbolo_escolhido is None:

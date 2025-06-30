@@ -83,6 +83,10 @@ class InterfaceJogador(DogPlayerInterface):
             messagebox.showerror("Jogada inválida", "Não está na vez de selecionar uma peça")
             return
 
+        if value != self.tabuleiro.composicao_jogada["totem"]["symbol"]:
+            messagebox.showwarning("Movimento inválido", "você deve selecionar um simbolo igual ao do totem")
+            return
+
         self.tabuleiro.simbolo_escolhido = value
         self.tabuleiro.fase_jogada = JogadaFase.COLOCAR_PECA
         messagebox.showinfo("Simbolo selecionado", f"Simbolo {value} selecionado.")
